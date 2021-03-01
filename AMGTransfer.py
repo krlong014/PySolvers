@@ -58,6 +58,7 @@ def smoothUpdate(A, C):
       print(tab1, 'coarse-coarse connection, entry is 1')
       continue
 
+    print(tab1, 'interpolating value for fine row ', i)
     # Get arrays of column indices and values for this row
     cols_i = allCols[ip[i] : ip[i+1]]
     vals_i = allVals[ip[i] : ip[i+1]]
@@ -76,11 +77,13 @@ def smoothUpdate(A, C):
         continue
       if j not in C:
         continue
-      print(tab2, 'coarse node f=%d, c=%d' % (j, f_to_c[j]))
+      print(tab2, 'contrib from coarse node f=%d, c=%d' % (j, f_to_c[j]))
 
       w_ij = a_ij
       print(tab2, 'direct connection: (%d,%d)=%g' % (i,j,w_ij))
       for m, a_im in zip(cols_i, vals_i):
+        if m==i: # <--- I forgot this on first pass!
+          continue
         if m not in C: # Approximate values on F by averaging
           print(tab3, 'fine node m=%d' % m)
           cols_m = allCols[ip[m] : ip[m+1]]
@@ -112,19 +115,31 @@ if __name__=='__main__':
 
   from DebyeHuckel import DiscretizeDH, ConstantFunc
   from GoofySquare import GoofySquare1
+  from AMGCoarsen import coarsen
+  from UniformRectangleMesher import UniformRectangleMesher
+  from MPLMeshViewer import MPLMeshViewer
 
+  mesh = UniformRectangleMesher(0.0, 1.0, 2, 0.0, 1.0, 2)
 
-  mesh = GoofySquare1()
-
-  beta = 1.0
+  beta = 0.0
   load = ConstantFunc(beta*beta)
   (A,b) = DiscretizeDH(mesh, load, beta)
 
+  np.set_printoptions(precision=4)
   print('A=\n', A.todense())
 
 
-  C = set([1,4,5,7,9,12])
+  C = coarsen(A)
+
 
   I_up = smoothUpdate(A,C)
 
+  print('Update matrix:')
+  np.set_printoptions(precision=4)
   print(I_up.todense())
+
+  print("row sums:")
+  print(I_up*np.ones(I_up.shape[1]))
+
+  viewer = MPLMeshViewer(vertRad=0.05, fontSize=14)
+  viewer.show(mesh, marked=C)

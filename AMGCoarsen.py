@@ -109,9 +109,9 @@ class PrioritizedSet:
 
 
 
-def coarsen(A):
+def coarsen(A, theta=0.25):
 
-  S, St = findNeighborSets(A, 0.0)
+  S, St = findNeighborSets(A, theta)
 
   # Initialize sets of coarse, fine, and unassigned nodes.
   C = set([])
@@ -124,9 +124,9 @@ def coarsen(A):
     P.add(i, len(s))
 
   while P.size > 0:
-    print('--- start iteration --- ')
-    print('\tpriorities = ')
-    P.show()
+    #print('--- start iteration --- ')
+    #print('\tpriorities = ')
+    #P.show()
     i = P.getNext()
     U.remove(i)
     C.add(i)
@@ -155,10 +155,12 @@ def coarsen(A):
           p_k += 2
       P.updatePriority(k, p_k)
 
-    print('--- done sweep ---')
-    print('\tC=', C)
-    print('\tF=', F)
-    print('\tfU=', U)
+    #print('--- done sweep ---')
+    #print('\tC=', C)
+    #print('\tF=', F)
+    #print('\tfU=', U)
+
+  return C
 
 
 
@@ -168,11 +170,17 @@ if __name__=='__main__':
 
   from DebyeHuckel import DiscretizeDH, ConstantFunc
   from GoofySquare import GoofySquare1
+  from UniformRectangleMesher import UniformRectangleMesher
+  from MPLMeshViewer import MPLMeshViewer
 
-  mesh = GoofySquare1()
+  mesh = UniformRectangleMesher(0.0, 1.0, 8, 0.0, 1.0, 7)
+  #mesh = GoofySquare1()
 
   beta = 0.0
   load = ConstantFunc(beta*beta)
   (A,b) = DiscretizeDH(mesh, load, beta)
 
-  coarsen(A)
+  C = coarsen(A)
+
+  viewer = MPLMeshViewer(vertRad=0.05, fontSize=14)
+  viewer.show(mesh, marked=C)
