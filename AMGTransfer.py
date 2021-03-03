@@ -46,6 +46,7 @@ def smoothUpdate(A, C):
   tab2 = Tab()
   tab3 = Tab()
   tab4 = Tab()
+  tab5 = Tab()
 
 
   # Main loop over rows
@@ -81,16 +82,20 @@ def smoothUpdate(A, C):
 
       w_ij = a_ij
       print(tab2, 'direct connection: (%d,%d)=%g' % (i,j,w_ij))
+      print(tab2, 'finding indirect contributions')
+      print(tab2, 'looking at neighbors ', cols_i)
       for m, a_im in zip(cols_i, vals_i):
         if m==i: # <--- I forgot this on first pass!
           continue
         if m not in C: # Approximate values on F by averaging
-          print(tab3, 'fine node m=%d' % m)
+          print(tab3, 'approximating fine node m=%d' % m)
           cols_m = allCols[ip[m] : ip[m+1]]
           vals_m = allVals[ip[m] : ip[m+1]]
           denom = 0.0
+          print(tab3, 'neighbors of m=%d are ' % m, cols_m)
           for k,a_mk in zip(cols_m, vals_m):
             if k in C and k in cols_i:
+              print(tab4, 'indirect contribution from coarse node k=', k)
               denom += a_mk
             if k==j:
               num = a_im * a_mk
@@ -100,6 +105,7 @@ def smoothUpdate(A, C):
           print(tab3, 'indirect connection through fine node %d: %g' % (m,num/denom))
           w_ij += num/denom
         else: # No need to approximate coarse node values
+          print(tab3, 'no need to approximate value at coarse node m=', m)
           continue
       print(tab2, '(%d,%d), val=%g' %(i,j,w_ij))
       I_up[i, f_to_c[j]] = -w_ij/diag
@@ -108,6 +114,15 @@ def smoothUpdate(A, C):
 
   return I_up.tocsr()
 
+def makeDowndate(I_up, normalize=True):
+  I_down = I_up.transpose(copy=True).tolil()
+  print('I_down shape=', I_down.shape)
+  if normalize:
+    for r in range(I_down.shape[0]):
+      row = I_down.getrowview(r)
+      nrm = row.sum()
+      row /= nrm
+  return I_down.tocsr()
 
 #----------------------------------------------------------------------------
 
@@ -118,6 +133,8 @@ if __name__=='__main__':
   from AMGCoarsen import coarsen
   from UniformRectangleMesher import UniformRectangleMesher
   from MPLMeshViewer import MPLMeshViewer
+
+  np.set_printoptions(precision=4)
 
   mesh = UniformRectangleMesher(0.0, 1.0, 2, 0.0, 1.0, 2)
 
@@ -133,13 +150,19 @@ if __name__=='__main__':
 
 
   I_up = smoothUpdate(A,C)
+  I_down = makeDowndate(I_up)
 
   print('Update matrix:')
-  np.set_printoptions(precision=4)
   print(I_up.todense())
 
-  print("row sums:")
+  print("Update row sums:")
   print(I_up*np.ones(I_up.shape[1]))
 
-  viewer = MPLMeshViewer(vertRad=0.05, fontSize=14)
+  print('Downdate matrix:')
+  print(I_down.todense())
+
+  print("Downdate row sums:")
+  print(I_down*np.ones(I_down.shape[1]))
+
+  viewer = MPLMeshViewer(vertRad=0.025, fontSize=10)
   viewer.show(mesh, marked=C)
