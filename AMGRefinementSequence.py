@@ -5,13 +5,13 @@ from AMGTransfer import smoothUpdate, makeDowndate
 from Tab import Tab
 from MatrixGraph import matrixGraph
 from Debug import Debug
+from Timer import Timer
 
 
 class AMGRefinementSequence:
 
   def __init__(self, A_f, numLevels, theta=0.25, verb=0, graph=False):
-
-
+    timer = Timer('AMG setup')
     self.seqA = [None]*numLevels
     self.updates = [None]*numLevels
     self.downdates = [None]*numLevels
@@ -23,14 +23,15 @@ class AMGRefinementSequence:
       Debug.msg1(verb, '-------------------------------------------------------------')
       Debug.msg1(verb, tab1, 'coarsening level %d to level %d' % (i+1,i))
       np.set_printoptions(threshold=np.inf)
-      Debug.msg2(verb, tab2, 'operator is A[%d]\n' % i, self.seqA[i+1].tolil())
-      C = coarsen(self.seqA[i+1], theta = theta)
+      Debug.msg4(verb, tab2, 'operator is A[%d]\n' % i, self.seqA[i+1].tolil())
+      C = coarsen(self.seqA[i+1], theta = theta, verb=verb)
+      Debug.msg2(verb, tab2, '#vertices: %d' % len(C))
       if graph:
         matrixGraph(self.seqA[i+1], C, name='graph-%d.gv' % i)
       Debug.msg1(verb, tab1, 'making update operator: level %d to level %d' % (i+1,i))
-      I_up = smoothUpdate(self.seqA[i+1], C)
+      I_up = smoothUpdate(self.seqA[i+1], C, verb)
       Debug.msg1(verb, tab1, 'making downdate operator: level %d to level %d' % (i,i+1))
-      I_down = makeDowndate(I_up)
+      I_down = makeDowndate(I_up, verb)
       self.updates[i] = I_up
       self.downdates[i] = I_down
       self.seqA[i] = self.downdates[i]*(self.seqA[i+1]*self.updates[i])

@@ -3,6 +3,7 @@ from Tab import *
 from Debug import *
 from ClassicSmoothers import *
 from AMGRefinementSequence import AMGRefinementSequence
+from Timer import TimeMonitor
 
 from numpy.random import MT19937
 from numpy.random import RandomState, SeedSequence
@@ -20,6 +21,7 @@ class AMGVCycleSolver(VCycleSolverBase):
     self.refSeq = None
     self.theta = theta
     self.graph = graph
+    self.verb = verb
 
   def prepForSolve(self, A):
     if self.refSeq == None or A is not self.refSeq.seqA[self.numLevels-1]:
@@ -42,7 +44,7 @@ if __name__=='__main__':
 
   np.set_printoptions(precision=4)
 
-  M = 256
+  M = 64
   mesh = UniformRectangleMesher(0.0, 1.0, M, 0.0, 1.0, M)
 
   beta = 0.1
@@ -50,7 +52,7 @@ if __name__=='__main__':
   (A,b) = DiscretizeDH(mesh, load, beta)
 
   numLevels = 4
-  verb = 1
+  verb = 2
   nu = 3
   theta = 0.00
 
@@ -68,3 +70,5 @@ if __name__=='__main__':
 
   err = la.norm(xEx-x)/la.norm(xEx)
   print('error = ', err)
+
+  TimeMonitor.report()

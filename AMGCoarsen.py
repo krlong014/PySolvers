@@ -110,7 +110,7 @@ class PrioritizedSet:
 
 
 
-def coarsen(A, theta=0.25):
+def coarsen(A, theta=0.25, verb=0):
 
   S, St = findNeighborSets(A, theta)
 

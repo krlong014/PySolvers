@@ -3,6 +3,7 @@ from Tab import *
 from Debug import *
 from ClassicSmoothers import *
 from abc import ABC, abstractmethod
+from Timer import Timer
 
 from numpy.random import MT19937
 from numpy.random import RandomState, SeedSequence
@@ -32,6 +33,7 @@ class VCycleSolverBase(ABC):
   def solve(self, A, b):
 
     verb = self.verb
+    timer = Timer('AMG VCycle solve')
 
     tab0 = Tab()
     Debug.msg1(verb, tab0, 'Setup for VCycle solve')
@@ -71,7 +73,7 @@ class VCycleSolverBase(ABC):
       r = b - A*x
       # Check for convergence
       rNorm = la.norm(r)
-      Debug.msg2(verb, tab1, 'Iter=%d relative resid=%g' % (k, rNorm/bNorm))
+      Debug.msg1(verb, tab1, 'Iter=%d relative resid=%g' % (k, rNorm/bNorm))
       if rNorm < self.tol*bNorm:
         Debug.msg1(verb, tab1, 'Converged after %d iterations' % k)
         return x
@@ -86,8 +88,7 @@ class VCycleSolverBase(ABC):
 
     verb = self.verb
     tab0 = Tab()
-    Debug.msg2(verb, tab0,
-      'lev=%d, dim(fh)=%d, dim(xh)=%d' % (lev, len(fh), len(xh)))
+    Debug.msg3(verb, tab0, 'V-cycle lev=%d' % lev)
     tab1 = Tab()
 
     # if at coarsest level, do a direct solve
@@ -99,28 +100,28 @@ class VCycleSolverBase(ABC):
     # Otherwise: pre-smooth, apply recursively, and post-smooth
 
     # Pre-smooth
-    Debug.msg2(verb, tab1, 'pre-smooth')
+    Debug.msg3(verb, tab1, 'pre-smooth')
     xh = self.smoothers[lev].apply(fh, xh, self.nuPre)
 
     # Find the residual after smoothing
-    Debug.msg2(verb, tab1, 'finding resid after smoothing')
+    Debug.msg3(verb, tab1, 'finding resid after smoothing')
     rh = fh - self.ops[lev]*xh
     # Coarsen the residual
-    Debug.msg2(verb, tab1, 'coarsening resid')
+    Debug.msg3(verb, tab1, 'coarsening resid')
     r2h = self.refSeq.downdates[lev-1]*rh
 
     # Recursively apply ML to solve A^{2h} e^{2h} = r^{2h}
-    Debug.msg2(verb, tab1, 'recursing...')
+    Debug.msg3(verb, tab1, 'recursing...')
     x2h = np.zeros_like(r2h)
     x2h = self.runLevel(r2h, x2h, lev-1)
 
     # Correct the solution by adding in the prolongation of the coarse-grid error
-    Debug.msg2(verb, tab1, 'fine grid correction')
+    Debug.msg3(verb, tab1, 'fine grid correction')
     xh = xh + self.refSeq.updates[lev-1]*x2h
 
     # Post-smooth to remove any high-frequency errors resulting from fine-grid
     # correction
-    Debug.msg2(verb, tab1, 'post-smooth')
+    Debug.msg3(verb, tab1, 'post-smooth')
     xh = self.smoothers[lev].apply(fh, xh, self.nuPost)
 
     return xh
