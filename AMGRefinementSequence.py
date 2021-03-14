@@ -3,11 +3,13 @@ import scipy.sparse as sp
 from AMGCoarsen import coarsen
 from AMGTransfer import smoothUpdate, makeDowndate
 from Tab import Tab
+from MatrixGraph import matrixGraph
+from Debug import Debug
 
 
 class AMGRefinementSequence:
 
-  def __init__(self, A_f, numLevels, verb=0):
+  def __init__(self, A_f, numLevels, theta=0.25, verb=0, graph=False):
 
 
     self.seqA = [None]*numLevels
@@ -18,13 +20,16 @@ class AMGRefinementSequence:
     tab1 = Tab()
     tab2 = Tab()
     for i in reversed(range(numLevels-1)):
-      print('-------------------------------------------------------------')
-      print(tab1, 'coarsening level %d to level %d' % (i+1,i))
-      print(tab2, 'operator is A[%d]\n' % i, self.seqA[i+1])
-      C = coarsen(self.seqA[i+1])
-      print(tab1, 'making update operator: level %d to level %d' % (i+1,i))
+      Debug.msg1(verb, '-------------------------------------------------------------')
+      Debug.msg1(verb, tab1, 'coarsening level %d to level %d' % (i+1,i))
+      np.set_printoptions(threshold=np.inf)
+      Debug.msg2(verb, tab2, 'operator is A[%d]\n' % i, self.seqA[i+1].tolil())
+      C = coarsen(self.seqA[i+1], theta = theta)
+      if graph:
+        matrixGraph(self.seqA[i+1], C, name='graph-%d.gv' % i)
+      Debug.msg1(verb, tab1, 'making update operator: level %d to level %d' % (i+1,i))
       I_up = smoothUpdate(self.seqA[i+1], C)
-      print(tab1, 'making downdate operator: level %d to level %d' % (i,i+1))
+      Debug.msg1(verb, tab1, 'making downdate operator: level %d to level %d' % (i,i+1))
       I_down = makeDowndate(I_up)
       self.updates[i] = I_up
       self.downdates[i] = I_down
@@ -43,13 +48,9 @@ class AMGRefinementSequence:
   def matrix(self, i):
     return self.seqA[i]
 
-  def makeVectorSequence(self, fine_b):
-    L = self.numLevels()
-    seq_b = [None]*L
-    seq_b[L-1]=fine_b
-    for i in reversed(range(L-1)):
-      seq_b[i]=self.downdates[i]*self.seq_b[i+1]
-    return seq_b
+
+
+
 
 # ---------------------------------------------------------------------------
 # Test code
@@ -66,20 +67,20 @@ if __name__=='__main__':
 
   np.set_printoptions(precision=4)
 
-  mesh = UniformRectangleMesher(0.0, 1.0, 6, 0.0, 1.0, 6)
+  M = 24
+  mesh = UniformRectangleMesher(0.0, 1.0, M, 0.0, 1.0, M)
 
   beta = 0.0
   load = ConstantFunc(beta*beta)
   (A,b) = DiscretizeDH(mesh, load, beta)
 
   numLevels = 4
+  verb = 1
 
-  AMGRS = AMGRefinementSequence(A, numLevels)
+  AMGRS = AMGRefinementSequence(A, numLevels, verb=verb, graph=True)
 
 
-
-  print('-- loading fEx and fUp')
   for i in range(numLevels-1):
-    print('I_up[%d] = \n' % i, AMGRS.update(i))
-    print('I_down[%d] = \n' % i, AMGRS.downdate(i))
-    print('A[%d] = \n' % i, AMGRS.matrix(i))
+    Debug.msg2(verb, 'I_up[%d] = \n' % i, AMGRS.update(i))
+    Debug.msg2(verb, 'I_down[%d] = \n' % i, AMGRS.downdate(i))
+    Debug.msg2(verb, 'A[%d] = \n' % i, AMGRS.matrix(i))

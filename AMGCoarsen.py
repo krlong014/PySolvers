@@ -1,7 +1,8 @@
 import scipy.sparse as sp
 import numpy as np
+from Debug import Debug
 
-def findNeighborSets(A, theta=0.0):
+def findNeighborSets(A, theta=0.25):
 
   if not sp.isspmatrix_csr(A):
     raise ValueError('findNeighborSets() expected a CSR matrix as input')
