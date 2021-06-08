@@ -2,40 +2,17 @@
 # Katharine Long, Texas Tech.
 # This code is in the public domain.
 
-import time
 from copy import deepcopy
 import scipy.linalg as la
 import numpy as np
 import scipy.sparse.linalg as spla
 import scipy.sparse as sp
-from numpy.random import MT19937
-from numpy.random import RandomState, SeedSequence
-from Givens import findGivensCoefficients, applyGivens, applyGivensInPlace
+from . Givens import findGivensCoefficients, applyGivens, applyGivensInPlace
 from scipy.io import mmread
-from BasicPreconditioner import *
+from . Preconditioner import Preconditioner, IdentityPreconditioner
+from . mvmult import mvmult
 
-# A simple timer class
-class MyTimer:
-    def __init__(self, name):
-        self.name = name
-        self.start = time.time()
 
-    def stop(self):
-        self.stop = time.time()
-
-    def walltime(self):
-        return self.stop - self.start
-
-# Unified mvmult user interface for both scipy.sparse and numpy matrices.
-# In scipy.sparse, mvmult is done using the overloaded * operator, e.g., A*x.
-# In numpy, mvmult is done using the dot() function, e.g., dot(A,x).
-# This function chooses which to use based on whether A is stored as
-# a sparse matrix.
-def mvmult(A, x):
-    if sp.issparse(A):
-        return A*x
-    else:
-        return np.dot(A,x)
 
 # This is function applies GMRES to solve Ax=b for x with optional right
 # preconditioning
@@ -50,7 +27,7 @@ def mvmult(A, x):
 #                vector v, resulting the result as a numpy array.
 #
 def GMRES(A, b, maxiters=100, tol=1.0e-6,
-    precond=PreconditionerBase()):
+    precond=IdentityPreconditioner()):
 
     # We'll scale residual norms relative to ||b||
     norm_b = la.norm(b)
@@ -59,9 +36,7 @@ def GMRES(A, b, maxiters=100, tol=1.0e-6,
     # to set the dimension of the Arnoldi vectors (i.e., the number of rows in
     # the matrix Q).
     n,nc = A.shape
-    if n!=nc:
-        raise RuntimeError('InnerGMRES: Non-square matrix; size is %d by %d'
-            % (n,nc))
+    assert(n==nc)
 
 
     # Allocate space for Arnoldi results
@@ -162,74 +137,3 @@ def GMRES(A, b, maxiters=100, tol=1.0e-6,
     print('GMRES failed to converge after %g iterations'
             % maxiters)
     return (False, maxiters, 0)
-
-
-
-
-# ---- Test program --------
-
-if __name__=='__main__':
-
-    rs = RandomState(MT19937(SeedSequence(123456789)))
-
-    level = 9
-    A = mmread('TestMatrices/DH-Matrix-%d.mtx' % level)
-    A = A.tocsr()
-    n,nc = A.shape
-    print('System is %d by %d' %(n,nc))
-
-    if n < 12000:
-        Adense = A.todense()
-        print('\nCondition number ', np.linalg.cond(Adense))
-
-
-    # Create a solution
-
-    xEx = rs.rand(n)
-    # Multiply the solution by A to create a RHS vector
-    b = mvmult(A, xEx)
-
-
-    # Create a preconditioner
-    drop = 1.0e-0
-    print('Creating ILU preconditioner with drop tol = %g' % drop)
-    precTimer = MyTimer('ILU creation')
-    ILU = ILURightPreconditioner(A, drop_tol=drop, fill_factor=15)
-    precTimer.stop()
-
-
-    # Run GMRES
-    print('Running GMRES')
-    gmresTimer = MyTimer('GMRES')
-    (conv, iters, x) = GMRES(A,b,maxiters=500, tol=1.0e-6, precond=ILU)
-    gmresTimer.stop()
-
-    # Delete the preconditioner object to save memory for the factorization
-    del ILU
-
-    # Print the error
-    if conv:
-        err = la.norm(x - xEx)/la.norm(xEx)
-        print('\nGMRES relative error norm = %10.3g' % err)
-    else:
-        print('GMRES failed')
-
-
-    # For comparison, do a sparse direct solve using SuperLU
-    print('Running SuperLU')
-    spluTimer = MyTimer('Super LU')
-    LU = spla.splu(A.tocsc())
-    xDirect = LU.solve(b)
-    spluTimer.stop()
-
-    err = la.norm(xDirect - xEx)/la.norm(xEx)
-    print('\nSparse direct solve error norm = %10.3g' % err)
-
-    print('\nTotal GMRES time (prec setup +iter)\t %10.3g seconds'
-        % (precTimer.walltime()+gmresTimer.walltime()))
-    print('\t-Preconditioner setup time:      %10.3g seconds'
-        % precTimer.walltime())
-    print('\t-GMRES iteration time:           %10.3g seconds'
-        % gmresTimer.walltime())
-    print('\nDirect solve time\t                %10.3g seconds'
-        % spluTimer.walltime())
