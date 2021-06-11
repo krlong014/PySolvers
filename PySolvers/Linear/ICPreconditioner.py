@@ -1,8 +1,32 @@
+# ============================================================================
+#
+# Class IterativeLinearSolver is a base class for linear solvers that handles
+# common maintenance jobs.
+#
+# Function mvmult() provides a common interface for matrix-vector multiplication
+# usable by both numpy 2D arrays and scipy sparse matrices.
+#
+# Katharine Long, Texas Tech University, 2020-2021.
+# ============================================================================
+
 from . Preconditioner import RightPreconditioner
+from . PreconditionerType import PreconditionerType
 
 import scipy.sparse.linalg as spla
 import scipy.sparse as sp
 import numpy as np
+
+
+class RightIC(PreconditionerType):
+    def __init__(self, drop_tol=0.001, fill_factor=15):
+        '''Constructor.'''
+        super().__init__()
+        self.drop_tol = drop_tol
+        self.fill_factor = fill_factor
+
+    def form(self, A):
+        return ICRightPreconditioner(A, drop_tol=self.drop_tol,
+                                     fill_factor=self.fill_factor)
 
 class ICRightPreconditioner(RightPreconditioner):
     '''Incomplete Cholesky preconditioner, to be applied from the right.'''

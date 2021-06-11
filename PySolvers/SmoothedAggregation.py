@@ -2,6 +2,37 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 import copy
+import . MultilevelSequence
+
+# Author: Nick Moore wrote the algorithms; Katharine Long wrote the object
+# interface.
+# Texas Tech University, 2021.
+
+class SmoothedAggregationMLSequence(MultilevelSequence):
+    def __init__(self, A_fine, numLevels=2, tol=None, normalize=True):
+        super().__init__(numLevels)
+        self.tol = tol
+        self.normalize = normalize
+
+        self._setFineMatrix(A_fine)
+        for lev in reversed(range(numLevels-1)):
+            I_up = self.makeProlongator(lev)
+            self._setUpdate(lev, I_up)
+
+    def makeProlongator(self, k):
+        '''Make the prologator to go from level k to k+1.'''
+        (I_up, aggregates) = SA_coarsen(
+                        self.matrix(lev+1), tol=tol, lvl=lev
+                        )
+        return I_up
+
+
+# --------------------------------------------------------------------------
+# Nick Moore's smoothed aggregation code
+
+
+
+
 
 def getNeighborhood(A, i, tol):
     N = {i}
@@ -92,7 +123,7 @@ def SmoothProlongator(Phat, A, Af, omega=(2/3)):
     smoothmat = np.eye(A.shape[0]) - smoothmat
     return smoothmat.dot(Phat)
 
-# Build the SA prolongation operator for a matrix 
+# Build the SA prolongation operator for a matrix
 def SA_coarsen(A, tol=None, lvl=1):
     # lvl will only be used if tol is None
 
@@ -105,7 +136,7 @@ def SA_coarsen(A, tol=None, lvl=1):
 
     # Build the tentative prolongator from the aggregates, A needed for it's dimensions
     Phat = BuildTentativeProlongator(A, aggregates)
-    
+
     # Build the filtered matrix for the smoother (expects lil matrix because I was lazy)
     Af = BuildFilteredMatrix(A.tolil(), tol)
 
@@ -127,11 +158,13 @@ if __name__=='__main__':
   load = ConstantFunc(beta*beta)
   (A,b) = DiscretizeDH(mesh, load, beta)
 
-  colors = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000']
+  colors = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4',
+    '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff',
+    '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075',
+    '#a9a9a9', '#ffffff', '#000000']
 
-  ( P, aggregates ) = SA_coarsen(A, tol=None, lvl=1) 
+  ( P, aggregates ) = SA_coarsen(A, tol=None, lvl=1)
   print(P)
 
   viewer = MPLMeshAggViewer(aggregates=aggregates, colors=colors, vertRad=0.05, fontSize=10)
   viewer.show(mesh)
-

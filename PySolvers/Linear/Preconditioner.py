@@ -17,6 +17,24 @@ class Preconditioner(ABC):
         '''Apply the preconditioner from the left.'''
         pass
 
+class GenericPreconditioner(Preconditioner):
+    '''Base class for preconditioners that can be applied from left or right'''
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def apply(self, vec):
+        '''Apply the preconditioner.'''
+        pass
+
+    def applyLeft(self, vec):
+        '''Apply the preconditioner from the right.'''
+        return self.apply(vec)
+
+    def applyRight(self, vec):
+        '''Apply the preconditioner from the left.'''
+        return self.apply(vec)
+
 
 class LeftPreconditioner(Preconditioner):
     '''Base class for left preconditioners.'''

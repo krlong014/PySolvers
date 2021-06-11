@@ -1,10 +1,34 @@
 from . Preconditioner import (Preconditioner,
     LeftPreconditioner, RightPreconditioner)
+from . PreconditionerType import PreconditionerType
 
 import scipy.sparse.linalg as spla
 import scipy.sparse as sp
 import numpy.linalg as npla
 import numpy as np
+
+class LeftILUT(PreconditionerType):
+
+    def __init__(drop_tol=0.001, fill_factor=15):
+        self.__init__()
+        self.drop_tol = drop_tol
+        self.fill_factor = fill_factor
+
+    def form(self, A):
+        return LeftILUTPreconditioner(A, drop_tol=self.drop_tol,
+                                      fill_factor=self.fill_factor)
+
+
+class RightILUT(PreconditionerType):
+
+    def __init__(drop_tol=0.001, fill_factor=15):
+        self.__init__()
+        self.drop_tol = drop_tol
+        self.fill_factor = fill_factor
+
+    def form(self, A):
+        return RightILUTPreconditioner(A, drop_tol=self.drop_tol,
+                                      fill_factor=self.fill_factor)
 
 class ILUTPreconditioner(Preconditioner):
     '''
