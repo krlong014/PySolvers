@@ -1,7 +1,10 @@
 # ============================================================================
 # Preconditioned conjugate gradient solver and factory class.
 #
-# Class PGCSolver is a subtype of iterative linear solver
+# Class PCG is a factory class that builds a PCGSolver using the makeSolver()
+# function in the IterativeLinearSolverType API.
+#
+# Class PGCSolver is a solver object.
 #
 # Katharine Long, Texas Tech University, 2020-2021.
 # ============================================================================

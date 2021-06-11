@@ -9,8 +9,8 @@ import numpy as np
 
 class LeftILUT(PreconditionerType):
 
-    def __init__(drop_tol=0.001, fill_factor=15):
-        self.__init__()
+    def __init__(self, drop_tol=0.001, fill_factor=15):
+        super().__init__()
         self.drop_tol = drop_tol
         self.fill_factor = fill_factor
 
@@ -21,8 +21,8 @@ class LeftILUT(PreconditionerType):
 
 class RightILUT(PreconditionerType):
 
-    def __init__(drop_tol=0.001, fill_factor=15):
-        self.__init__()
+    def __init__(self, drop_tol=0.001, fill_factor=15):
+        super().__init__()
         self.drop_tol = drop_tol
         self.fill_factor = fill_factor
 
