@@ -9,3 +9,4 @@ from PySolvers.Linear.Preconditioner import IdentityPreconditioner
 from PySolvers.Linear.ICPreconditioner import (ICRightPreconditioner, RightIC)
 from PySolvers.Linear.ILUTPreconditioner import (LeftILUT, RightILUT)
 from PySolvers.Linear.VCycleSolver import AMGVCycle, AMGVCycleSolver
+from PySolvers.Linear.AMGPreconditioner import AMGPreconditioner, AMG

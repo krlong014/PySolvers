@@ -32,6 +32,8 @@ class LinearSolver(ABC):
     '''
     def __init__(self, name=''):
         self._name = name
+        self._matrixFrozen = False
+        self._precFrozen = False
 
     @abstractmethod
     def solve(self, A, b):
@@ -43,3 +45,21 @@ class LinearSolver(ABC):
         Return a descriptive name for this solver. Useful with nested solvers.
         '''
         return self._name
+
+    def freezeMatrix(self):
+        self._matrixFrozen = True
+
+    def unfreezeMatrix(self):
+        self._matrixFrozen = False
+
+    def matrixFrozen(self):
+        return self._matrixFrozen
+
+    def freezePrec(self):
+        self._precFrozen = True
+
+    def unfreezePrec(self):
+        self._precFrozen = False
+
+    def precFrozen(self):
+        return self._precFrozen

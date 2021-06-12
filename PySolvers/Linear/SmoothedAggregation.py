@@ -25,7 +25,7 @@ class SmoothedAggregationMLHierarchy(MLHierarchy):
         tab = Tab()
         print('{}making prolongator from level {} to {}'.format(tab,lev,lev+1))
         (I_up, aggregates) = SA_coarsen(
-                        self.matrix(lev+1), tol=self.tol, lvl=lev
+                        self.matrix(lev+1), tol=self.tol, lvl=lev+1
                         )
         return I_up
 

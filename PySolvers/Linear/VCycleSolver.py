@@ -6,6 +6,7 @@ from . VCycleManager import VCycleManager
 from . IterativeLinearSolver import (IterativeLinearSolver,
                                      IterativeLinearSolverType,
                                      CommonSolverArgs)
+from PyTab import Tab
 import numpy.linalg as la
 import scipy.sparse.linalg as spla
 import numpy as np
@@ -41,14 +42,15 @@ class AMGVCycleSolver(IterativeLinearSolver):
     def __init__(self, control=CommonSolverArgs(),
                  numLevels=2, nuPre=2, nuPost=2,
                  smoother=GaussSeidelSmoother, name='AMGVCycle'):
-        super().__init__(args=control)
+        super().__init__(args=control, name=name)
         self.numLevels = numLevels
         self.nuPre = nuPre
         self.nuPost = nuPost
         self.smoother = smoother
+        self._cycleMgr = None
 
     def solve(self, A, b):
-
+        tab = Tab()
 
         # Get size of matrix
         n,nc = A.shape
@@ -66,15 +68,17 @@ class AMGVCycleSolver(IterativeLinearSolver):
         r = np.copy(b)
         x = np.copy(b)
 
-        mlh = SmoothedAggregationMLHierarchy(A, numLevels=self.numLevels)
+        if self._cycleMgr==None or not self.matrixFrozen():
+            mlh = SmoothedAggregationMLHierarchy(A, numLevels=self.numLevels)
 
-        cycleMgr = VCycleManager(mlh, nuPre=self.nuPre, nuPost=self.nuPost,
-                                smoother=self.smoother)
+            self._cycleMgr = VCycleManager(mlh, nuPre=self.nuPre,
+                                           nuPost=self.nuPost,
+                                           smoother=self.smoother)
 
         # Main loop
         for k in range(self.maxiter()):
             # Run a V-cycle
-            x = cycleMgr.runCycle(b, x)
+            x = self._cycleMgr.runCycle(b, x)
 
             # Compute residual
             r = b - A*x

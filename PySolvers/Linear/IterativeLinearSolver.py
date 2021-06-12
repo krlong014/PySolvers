@@ -165,26 +165,29 @@ class IterativeLinearSolver(LinearSolver):
 
     def reportSuccess(self, iter, normR, normB):
         '''If args.showFinal==True, print a message upon convergence.'''
+        tab=Tab()
         if self._args.showFinal:
             normRel = normR
             if normR != 0:
                 normRel = normR/normB
-            print('%s solve succeeded: iters=%7d, ||r||/r0=%12.5g' %
-                (self.name(), iter, normRel))
+            print('%s%s solve succeeded: iters=%7d, ||r||/r0=%12.5g' %
+                (tab, self.name(), iter, normRel))
 
     def reportBreakdown(self, msg=''):
         '''If args.showFinal==True, print a message upon breakdown.'''
+        tab=Tab()
         if self._args.showFinal:
-            print('%s solve broke down: %s' % (self.name(), msg))
+            print('%s%s solve broke down: %s' % (tab, self.name(), msg))
 
     def reportFailure(self, iter, normR, normB):
         '''If args.showFinal==True, print a message upon failure to converge.'''
+        tab=Tab()
         if self._args.showFinal:
             normRel = normR
             if normR != 0:
                 normRel = normR/normB
-            print('%s solve FAILED: iters=%7d, ||r||/r0=%12.5g' %
-                (self.name(), iter, normR/normB))
+            print('%s%s solve FAILED: iters=%7d, ||r||/r0=%12.5g' %
+                (tab, self.name(), iter, normR/normB))
 
 
 

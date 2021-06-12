@@ -16,6 +16,7 @@ from . IterativeLinearSolver import (IterativeLinearSolver, mvmult,
                                       CommonSolverArgs,
                                       IterativeLinearSolverType)
 from .. SolveStatus import SolveStatus
+from PyTab import Tab
 
 
 # -----------------------------------------------------------------------------
@@ -66,6 +67,8 @@ class PCGSolver(IterativeLinearSolver):
               success/failure flag, and convergence information.
         '''
 
+        tab = Tab()
+        
         # Get size of matrix
         n,nc = A.shape
         # Make sure matrix is square
