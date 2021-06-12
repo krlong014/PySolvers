@@ -3,6 +3,7 @@ from DHTestProblem import DHTestProblem
 import numpy as np
 import numpy.linalg as npla
 import argparse
+from PyTimer import Timer
 
 if __name__=='__main__':
 
@@ -29,3 +30,5 @@ if __name__=='__main__':
         print('err=%12.5g' % err)
     else:
         print('Solve failed: {}'.format(result.msg()))
+
+    Timer.report()

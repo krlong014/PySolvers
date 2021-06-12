@@ -4,6 +4,7 @@ import scipy.sparse.linalg as spla
 import copy
 from . MLHierarchy import MLHierarchy
 from PyTab import Tab
+from PyTimer import Timer
 
 # Author: Nick Moore wrote the algorithms; Katharine Long wrote the object
 # interface.
@@ -61,6 +62,8 @@ def BuildAggregates(A, lvl=1, tol=None, phase=3):
     if tol is None:
         tol = 0.08*(0.5)**(lvl-1)
 
+    timer0 = Timer('BuildAggregates init step')
+    timer0.start()
     # Initialization
     R = {i for i in range(A.shape[0])}
     a_diag = A.diagonal()
@@ -72,33 +75,61 @@ def BuildAggregates(A, lvl=1, tol=None, phase=3):
             aggregates.append(n)
             [elem] = n
             R.remove(elem)
+    timer0.stop()
 
+    timer1 = Timer('BuildAggregates phase 1')
+    timer1.start()
     # Phase 1
     if phase > 0:
         for i in range(A.shape[0]):
-            # If the neighborhood of i is completely in R, create an aggregate from the neighborhood
+            # If the neighborhood of i is completely in R, create an aggregate
+            # from the neighborhood
             if i in R and neighborhoods[i].issubset(R):
                 aggregates.append(neighborhoods[i])
                 R -= neighborhoods[i]
+    timer1.stop()
+
+    timer2 = Timer('BuildAggregates phase 2')
+    timer2.start()
 
     # Phase 2
     if phase > 1:
-        # Copy the aggregates since we need to modify and check the original aggregates
+        # Copy the aggregates since we need to modify and check the
+        # original aggregates
+        timer_copy = Timer('agg copy')
+        timer_copy.start()
         aggcopy = copy.deepcopy(aggregates)
+        timer_copy.stop()
         # Loop through elements still in R
         for i in range(A.shape[0]):
             if i in R:
                 # We need the strongest connection
                 max_conn_strength = 0.0
                 agg_idx_of_max = -1
-                # Loop through all aggregates, looking to see if the current neighborhood intersections
+                # Loop through all aggregates, looking to see if the current
+                # neighborhood intersections
                 for (j, agg) in enumerate(aggcopy):
-                    if not agg.isdisjoint(neighborhoods[i]):
+                    #timer_disj = Timer('agg disjoint check')
+                    #timer_disj.start()
+                    isDisjoint_i_j = agg.isdisjoint(neighborhoods[i])
+                    #timer_disj.stop()
+                    if not isDisjoint_i_j:
+                        #timer_loop = Timer('loop to find max strength')
+                        #timer_loop.start()
                         for k in agg:
                             if abs(A[i,k]) > max_conn_strength:
                                 max_conn_strength = abs(A[i,k])
                                 agg_idx_of_max = j
+                        #timer_loop.stop()
+                timer_insert = Timer('agg insertion')
+                timer_insert.start()
                 aggregates[agg_idx_of_max].add(i)
+                timer_insert.stop()
+
+    timer2.stop()
+
+    timer3 = Timer('BuildAggregates phase 2')
+    timer3.start()
 
     # Phase 3
     if phase > 2 and not R:
@@ -107,21 +138,27 @@ def BuildAggregates(A, lvl=1, tol=None, phase=3):
             if i in R:
                 aggregates.append(R.intersection(neighborhoods[i]))
                 R -= neighborhoods[i]
+    timer3.stop()
 
     return (aggregates, neighborhoods)
 
 def BuildTentativeProlongator(A, aggregates):
     tab=Tab()
+    timer = Timer('BuildTentativeProlongator')
+    timer.start()
     print('{}in BuildTentativeProlongator()'.format(tab))
     P = sp.dok_matrix((A.shape[0], len(aggregates)))
     for i in range(len(aggregates)):
         for j in aggregates[i]:
             P[j,i] = 1
+    timer.stop()
     return P
 
 def BuildFilteredMatrix(A, neighborhoods, tol):
     tab=Tab()
     print('{}in BuildFilteredMatrix()'.format(tab))
+    timer = Timer('BuildFilteredMatrix')
+    timer.start()
     # Expects A as csr
     Af = A.copy()
     for i in range(A.shape[0]):
@@ -142,11 +179,14 @@ def BuildFilteredMatrix(A, neighborhoods, tol):
                 Af.data[iPtr] -= Af.data[k]
                 Af.data[k]=0
 
+    timer.stop()
     return Af
 
 def SmoothProlongator(Phat, A, Af, omega=(2/3)):
     tab=Tab()
     print('{}in SmoothProlongator()'.format(tab))
+    timer = Timer('SmoothProlongator')
+    timer.start()
     smoothmat = omega*Af
     d_A = A.diagonal()
     for i in range(A.shape[0]):
@@ -160,7 +200,9 @@ def SmoothProlongator(Phat, A, Af, omega=(2/3)):
             else:
                 smoothmat.data[k] = -smoothmat.data[k]
 
-    return smoothmat.dot(Phat)
+    smoothed = smoothmat.dot(Phat)
+    timer.stop()
+    return smoothed
 
 # Build the SA prolongation operator for a matrix
 def SA_coarsen(A, tol=None, lvl=1):
