@@ -1,5 +1,6 @@
 from PySolvers.Linear import PCG, RightIC, CommonSolverArgs
 from DHTestProblem import DHTestProblem
+import numpy as np
 import numpy.linalg as npla
 import argparse
 
@@ -8,7 +9,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Default direct solver example')
     parser.add_argument('--meshLev', type=int, action='store', default=10)
     parser.add_argument('--maxiter', type=int, action='store', default=100)
-    parser.add_argument('--tau', type=int, action='store', default=1.0e-8)
+    parser.add_argument('--tau', type=np.double, action='store', default=1.0e-8)
 
     args = parser.parse_args()
 

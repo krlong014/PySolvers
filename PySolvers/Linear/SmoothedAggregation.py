@@ -2,15 +2,16 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 import copy
-import . MultilevelSequence
+from . MLHierarchy import MLHierarchy
+from PyTab import Tab
 
 # Author: Nick Moore wrote the algorithms; Katharine Long wrote the object
 # interface.
 # Texas Tech University, 2021.
 
-class SmoothedAggregationMLSequence(MultilevelSequence):
+class SmoothedAggregationMLHierarchy(MLHierarchy):
     def __init__(self, A_fine, numLevels=2, tol=None, normalize=True):
-        super().__init__(numLevels)
+        super().__init__(numLevels=numLevels, normalize=normalize)
         self.tol = tol
         self.normalize = normalize
 
@@ -19,10 +20,12 @@ class SmoothedAggregationMLSequence(MultilevelSequence):
             I_up = self.makeProlongator(lev)
             self._setUpdate(lev, I_up)
 
-    def makeProlongator(self, k):
+    def makeProlongator(self, lev):
         '''Make the prologator to go from level k to k+1.'''
+        tab = Tab()
+        print('{}making prolongator from level {} to {}'.format(tab,lev,lev+1))
         (I_up, aggregates) = SA_coarsen(
-                        self.matrix(lev+1), tol=tol, lvl=lev
+                        self.matrix(lev+1), tol=self.tol, lvl=lev
                         )
         return I_up
 
@@ -34,22 +37,34 @@ class SmoothedAggregationMLSequence(MultilevelSequence):
 
 
 
-def getNeighborhood(A, i, tol):
+def getNeighborhood(A, i, tol, a_diag):
+    tab = Tab()
+    #print('{}in getNeighborhood()'.format(tab))
     N = {i}
+    a_ii = a_diag[i]
+    start = A.indptr[i]
+    end = A.indptr[i+1]
 
-    for j in range(A.shape[1]):
-        if abs(A[i,j]) >= tol*np.sqrt(A[i,i]*A[j,j]):
+    for k in range(start, end):
+        j = A.indices[k]
+        a_ij = A.data[k]
+        a_jj = a_diag[j]
+        if abs(a_ij) >= tol*np.sqrt(a_ii*a_jj):
             N.add(j)
     return N
 
 def BuildAggregates(A, lvl=1, tol=None, phase=3):
+    tab=Tab()
+    tab1 = Tab()
+    print('{}in BuildAggregates()'.format(tab))
     # If tol isn't specified, then use the default by Vanek
     if tol is None:
         tol = 0.08*(0.5)**(lvl-1)
 
     # Initialization
     R = {i for i in range(A.shape[0])}
-    neighborhoods = [getNeighborhood(A,i,tol) for i in range(A.shape[0])]
+    a_diag = A.diagonal()
+    neighborhoods = [getNeighborhood(A,i,tol,a_diag) for i in range(A.shape[0])]
     aggregates = []
     # isolated nodes aren't aggregated
     for n in neighborhoods:
@@ -90,41 +105,67 @@ def BuildAggregates(A, lvl=1, tol=None, phase=3):
         # Loop through elements still in R
         for i in range(A.shape[0]):
             if i in R:
-                aggreagates.append(R.intersection(neighborhoods[i]))
+                aggregates.append(R.intersection(neighborhoods[i]))
                 R -= neighborhoods[i]
 
-    return aggregates
+    return (aggregates, neighborhoods)
 
 def BuildTentativeProlongator(A, aggregates):
-    P = np.zeros((A.shape[0], len(aggregates)))
+    tab=Tab()
+    print('{}in BuildTentativeProlongator()'.format(tab))
+    P = sp.dok_matrix((A.shape[0], len(aggregates)))
     for i in range(len(aggregates)):
         for j in aggregates[i]:
             P[j,i] = 1
     return P
 
-def BuildFilteredMatrix(A, tol):
-    # Expects A as a lil so I can subscript it
-    # Could be improved to take a different format, but I was lazy
+def BuildFilteredMatrix(A, neighborhoods, tol):
+    tab=Tab()
+    print('{}in BuildFilteredMatrix()'.format(tab))
+    # Expects A as csr
     Af = A.copy()
     for i in range(A.shape[0]):
-        N = getNeighborhood(A, i, tol)
-        for j in range(A.shape[1]):
+        N = neighborhoods[i]
+
+        start = Af.indptr[i]
+        end = Af.indptr[i+1]
+
+        for k in range(start, end):
+            j = Af.indices[k]
+            if i==j:
+                iPtr = k
+                break
+
+        for k in range(start, end):
+            j = Af.indices[k]
             if j not in N:
-                Af[i,i] -= Af[i,j]
-                Af[i,j] = 0
+                Af.data[iPtr] -= Af.data[k]
+                Af.data[k]=0
+
     return Af
 
 def SmoothProlongator(Phat, A, Af, omega=(2/3)):
+    tab=Tab()
+    print('{}in SmoothProlongator()'.format(tab))
     smoothmat = omega*Af
     d_A = A.diagonal()
     for i in range(A.shape[0]):
-        smoothmat[i,:] /= d_A[i]
+        start = smoothmat.indptr[i]
+        end = smoothmat.indptr[i+1]
+        for k in range(start, end):
+            j = smoothmat.indices[k]
+            smoothmat.data[k] /= d_A[i]
+            if i==j:
+                smoothmat.data[k] = 1 - smoothmat.data[k]
+            else:
+                smoothmat.data[k] = -smoothmat.data[k]
 
-    smoothmat = np.eye(A.shape[0]) - smoothmat
     return smoothmat.dot(Phat)
 
 # Build the SA prolongation operator for a matrix
 def SA_coarsen(A, tol=None, lvl=1):
+    tab=Tab()
+    print('{}in SA_coarsen()'.format(tab))
     # lvl will only be used if tol is None
 
     # If tol is None, use Vanek's suggestion
@@ -132,18 +173,18 @@ def SA_coarsen(A, tol=None, lvl=1):
         tol = 0.08*(0.5)**(lvl-1)
 
     # Build the aggregates
-    aggregates = BuildAggregates(A, lvl=lvl)
+    (aggregates, neighborhoods) = BuildAggregates(A, lvl=lvl)
 
     # Build the tentative prolongator from the aggregates, A needed for it's dimensions
     Phat = BuildTentativeProlongator(A, aggregates)
 
-    # Build the filtered matrix for the smoother (expects lil matrix because I was lazy)
-    Af = BuildFilteredMatrix(A.tolil(), tol)
+    # Build the filtered matrix for the smoother
+    Af = BuildFilteredMatrix(A, neighborhoods, tol)
 
     # Smooth the Prolongation Operator with weighted Jacobi using the filtered matrix
     P = SmoothProlongator(Phat, A, Af)
 
-    return (P, aggregates)
+    return (P.tocsr(), aggregates)
 
 if __name__=='__main__':
 

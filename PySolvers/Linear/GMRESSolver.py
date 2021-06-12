@@ -59,9 +59,7 @@ class GMRESSolver(IterativeLinearSolver):
         # Check for the trivial case b=0, x=0
         norm_b = self.norm(b)
         if norm_b == 0.0:
-            self.reportSuccess(0, 0, norm_b)
-            return SolveStatus(conv=True, soln=np.zeros_like(b),
-                               resid=0, iters=0)
+            return self.handleConvergence(0, np.zeros_like(b), 0, 0)
 
         # Form the preconditioner
         precond = self.precond().form(A)
@@ -148,7 +146,7 @@ class GMRESSolver(IterativeLinearSolver):
             norm_r_k = np.abs(g[k+1])
 
             # Print the current residual
-            self.iterOut(k, norm_r_k, norm_b)
+            self.reportIter(k, norm_r_k, norm_b)
 
             # Check for convergence
             if (arnoldiBreakdown==True) or (norm_r_k <= self.tau()*norm_b):
@@ -159,9 +157,7 @@ class GMRESSolver(IterativeLinearSolver):
                 resid = b - mvmult(A,x)
                 norm_r_true = self.norm(resid)
                 if norm_r_true <= self.tau()*norm_b:
-                    self.reportSuccess(k, norm_r_k, norm_b)
-                    return SolveStatus(success=True, iters=k+1, soln=x,
-                                      resid=norm_r_true)
+                    return self.handleConvergence(k, x, norm_r_true, norm_b)
                 else:
                     return SolveStatus(success=False, iters=k+1, soln=x,
                                        resid=norm_r_true,
@@ -173,7 +169,6 @@ class GMRESSolver(IterativeLinearSolver):
 
 
 
-        # Check for reaching maxiters without convergence
-        self.reportFailure(k+1, norm_r_k, norm_b)
-        return SolveStatus(success=False, iters=k+1, soln=None, resid=normR,
-                           msg='failure to converge')
+        # If we're here, maxiter has been reached. This is normally a failure,
+        # but may be acceptable if failOnMaxiter is set to false.
+        return self.handleMaxiter(k, x, norm_k, norm_b)

@@ -25,6 +25,7 @@ import numpy.linalg as npla
 from PyTab import Tab
 from . PreconditionerType import IdentityPreconditionerType
 from . LinearSolver import LinearSolver, LinearSolverType
+from .. SolveStatus import SolveStatus
 
 # -----------------------------------------------------------------------------
 # CommonSolverArgs
@@ -36,6 +37,8 @@ class CommonSolverArgs:
 
     * Attributes:
         * maxiter -- maximum number of iterations allowed before stopping.
+        * failOnMaxiter -- whether reaching maxiter is considered a failure. This
+        is normally true.
         * tau -- relative residual tolerance.
         * precond -- type of preconditioner to be used. This is a factory object
         that will build a preconditioner given a matrix.
@@ -47,6 +50,7 @@ class CommonSolverArgs:
     '''
     def __init__(self,
                 maxiter=100,
+                failOnMaxiter=True,
                 tau=1.0e-8,
                 precond=IdentityPreconditionerType(),
                 norm=npla.norm,
@@ -55,6 +59,7 @@ class CommonSolverArgs:
                 interval=1):
         '''Constructor'''
         self.maxiter = maxiter
+        self.failOnMaxiter = failOnMaxiter
         self.tau = tau
         self.precondType = precond
         self.norm = norm
@@ -101,6 +106,10 @@ class IterativeLinearSolver(LinearSolver):
         '''Return the maximum number of iterations allowed.'''
         return self._args.maxiter
 
+    def failOnMaxiter(self):
+        '''Indicate whether reaching maxiter is to be considered a failure.'''
+        return self._args.failOnMaxiter
+
     def tau(self):
         '''Return the relative residual tolerance.'''
         return self._args.tau
@@ -113,7 +122,7 @@ class IterativeLinearSolver(LinearSolver):
         '''Evaluate the norm of a vector x using the solver's specified norm.'''
         return self._args.norm(x)
 
-    def iterOut(self, iter, normR, normR0):
+    def reportIter(self, iter, normR, normR0):
         '''
         If args.showIters==True, print information about the current iteration
         at intervals specified by the args.interval parameter. Otherwise,
@@ -124,22 +133,59 @@ class IterativeLinearSolver(LinearSolver):
             print('%s%s iter=%7d ||r||=%12.5g ||r||/r0=%12.5g' %
                   (tab, self.name(), iter, normR, normR/normR0))
 
-    def reportSuccess(self, iter, normR, normR0):
+    def handleConvergence(self, iter, x, normR, normB):
+        '''
+        Deal with detection of convergence (or at least successful stopping).
+        Returns a successful SolveStatus.
+        '''
+        self.reportSuccess(iter+1, normR, normB)
+        return SolveStatus(success=True, iters=iter+1, soln=x, resid=normR)
+
+    def handleBreakdown(self, iter, msg):
+        '''
+        Deal with breakdown.
+        '''
+        self.reportBreakdown(msg=msg)
+        return SolveStatus(success=False, iters=iter,
+                           soln=None, resid=None, msg=msg)
+
+    def handleMaxiter(self, iter, x, normR, normB):
+        '''
+        Deal with reaching maxiter. Returns a SolveStatus indicating either
+        failure (most common) or success (if failOnMaxiter==False).
+        '''
+        # If we're here, maxiter has been reached. This is normally a failure.
+        if self.failOnMaxiter():
+            self.reportFailure(iter, normR, normB)
+            return SolveStatus(success=False, iters=iter, soln=x, resid=normR,
+                            msg='failure to converge')
+        else: # Termination at maxiter is OK, as in use as preconditioner
+            self.reportSuccess(iter+1, normR, normB)
+            return SolveStatus(success=True, iters=iter, soln=x, resid=normR)
+
+    def reportSuccess(self, iter, normR, normB):
         '''If args.showFinal==True, print a message upon convergence.'''
         if self._args.showFinal:
+            normRel = normR
+            if normR != 0:
+                normRel = normR/normB
             print('%s solve succeeded: iters=%7d, ||r||/r0=%12.5g' %
-                (self.name(), iter, normR/normR0))
+                (self.name(), iter, normRel))
 
     def reportBreakdown(self, msg=''):
         '''If args.showFinal==True, print a message upon breakdown.'''
         if self._args.showFinal:
             print('%s solve broke down: %s' % (self.name(), msg))
 
-    def reportFailure(self, iter, normR, normR0):
+    def reportFailure(self, iter, normR, normB):
         '''If args.showFinal==True, print a message upon failure to converge.'''
         if self._args.showFinal:
+            normRel = normR
+            if normR != 0:
+                normRel = normR/normB
             print('%s solve FAILED: iters=%7d, ||r||/r0=%12.5g' %
-                (self.name(), iter, normR/normR0))
+                (self.name(), iter, normR/normB))
+
 
 
 # -----------------------------------------------------------------------------

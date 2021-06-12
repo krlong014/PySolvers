@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 import scipy.sparse
 
 
-class MultilevelSequence(ABC):
+class MLHierarchy(ABC):
     '''
-    This class stores a sequence of update operators, downdate operators,
+    This class stores a heirarchy of update operators, downdate operators,
     and system matrices for use in multilevel solvers and preconditioning.
     Level 0 is the coarsest level; level numLevels-1 is the finest.
 
@@ -13,10 +13,11 @@ class MultilevelSequence(ABC):
     3. A[k] is the system matrix at level k (for k=0 to N-1)
     '''
 
-    def __init__(self, numLevels, normalize=True):
+    def __init__(self, numLevels=2, normalize=True):
         '''
         Initialize the refinement sequence with empty operator arrays.
         '''
+        print('numLevels={}, type={}'.format(numLevels.__repr__(), type(numLevels)))
         self._numLevels = numLevels
         self._ops = [None]*numLevels
         self._updates = [None]*numLevels
@@ -37,7 +38,7 @@ class MultilevelSequence(ABC):
 
     def update(self, k):
         '''Get the update operator mapping level k to level k+1.'''
-        return self._updates[i]
+        return self._updates[k]
 
     def downdate(self, k):
         '''Get the downdate operator mapping level k+1 to level k.'''

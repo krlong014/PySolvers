@@ -76,28 +76,21 @@ class PCGSolver(IterativeLinearSolver):
         # Check for the trivial case b=0, x=0
         normB = self.norm(b)
         if normB == 0.0:
-            self.reportSuccess(0, 0, normB)
-            return SolveStatus(conv=True, soln=np.zeros_like(b),
-                               resid=0, iters=0)
+            return self.handleConvergence(0, np.zeros_like(b), 0, 0)
 
         # Form the preconditioner
         precond = self.precond().form(A)
 
         # Initialize the step, residual, and solution vectors
-        r = 1.0*b
+        r = np.copy(b)
         p = precond.applyRight(r)
-        u = 1.0*p
+        u = np.copy(p)
         x = np.zeros_like(b)
-
-        # We'll use ||b|| for computing relative residuals
-        normB = self.norm(b)
-
 
         uDotR = np.dot(u,r) # Should never be zero, since we've caught b=0
         # Check anyway
         if uDotR==0.0:
-            self.reportBreakdown(msg='dot(u,r)==0')
-            return SolveStatus(success=False, msg='breakdown dot(u,r)==0')
+            return self.handleBreakdown(0, 'breakdown dot(u,r)==0')
 
 
         # Preconditioned CG loop
@@ -107,33 +100,34 @@ class PCGSolver(IterativeLinearSolver):
 
             pTAp = np.dot(p,Ap)
             if pTAp==0.0:
-                self.reportBreakdown(prefix='PCG', msg='breakdown dot(p, Ap)==0')
-                return SolveStatus(success=False, soln=x, resid=-1, iters=k,
-                                    msg='breakdown dot(p, Ap)==0')
+                return self.handleBreakdown(k, 'breakdown dot(p, Ap)==0')
 
             # calculate step length
             alpha = uDotR/pTAp
 
+            # Make step and compute updated residual
             x = x + alpha*p
             r = r - alpha*Ap
             u = precond.applyRight(r)
 
             normR = self.norm(r)
-            self.iterOut(k, normR, normB)
+            self.reportIter(k, normR, normB)
 
-            if normR <= self.tau()*normB:
-                self.reportSuccess(k+1, normR, normB)
-                return SolveStatus(success=True, iters=k+1, soln=x, resid=normR)
+            # Check for convergence
+            if ((normR <= self.tau()*normB) or
+                    ((not self.failOnMaxiter()) and k==self.maxiter()-1)):
+                return self.handleConvergence(k, x, normR, normB)
 
+            # Find next step direction
             newUDotR = np.dot(u,r)
             beta = newUDotR/uDotR
             uDotR = newUDotR
 
             p = u + beta*p
 
-        # Failure to converge.
-        self.reportFailure(k+1, normR, normB)
-        return SolveStatus(success=False, iters=k+1, soln=x, resid=normR,
-                           msg='failure to converge')
+        # If we're here, maxiter has been reached. This is normally a failure,
+        # but may be acceptable if failOnMaxiter is set to false.
+        return self.handleMaxiter(k, x, normR, normB)
+
 
         # Done PCG solve()
