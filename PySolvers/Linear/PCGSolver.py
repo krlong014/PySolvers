@@ -13,8 +13,8 @@ import numpy.linalg as npla
 import numpy as np
 from . PreconditionerType import IdentityPreconditionerType
 from . IterativeLinearSolver import (IterativeLinearSolver, mvmult,
-                                      CommonSolverArgs,
                                       IterativeLinearSolverType)
+from .. IterativeSolver import (IterativeSolver, CommonSolverArgs)
 from .. SolveStatus import SolveStatus
 from PyTab import Tab
 
@@ -23,15 +23,17 @@ from PyTab import Tab
 # PCG factory class
 
 class PCG(IterativeLinearSolverType):
-    def __init__(self, args=CommonSolverArgs(), name='PCG'):
-        super().__init__(args=args, name=name)
+    def __init__(self, control=CommonSolverArgs(),
+                 precond=IdentityPreconditionerType(), name='PCG'):
+        super().__init__(control=control, precond=precond, name=name)
 
     def makeSolver(self, name=None):
         '''Creates a PCG solver object with the specified parameters.'''
         useName = name
         if useName==None:
             useName = self.name()
-        return PCGSolver(self.args(), useName)
+        return PCGSolver(self.control(), precond=self.precond(),
+                         name=useName)
 
 
 # -----------------------------------------------------------------------------
@@ -48,10 +50,14 @@ class PCGSolver(IterativeLinearSolver):
         residual is less than tau.
     * monitor --
     '''
-    def __init__(self, args=CommonSolverArgs(), name='PCG'):
+    def __init__(self,
+                 control=CommonSolverArgs(),
+                 precond=IdentityPreconditionerType(),
+                 name='PCG'):
         '''Constructor'''
 
-        super().__init__(args=args, name=name)
+        super().__init__(control=control, precond=precond, name=name)
+        self.precond = None
 
         # Done PCGSolver constructor
 
@@ -68,7 +74,7 @@ class PCGSolver(IterativeLinearSolver):
         '''
 
         tab = Tab()
-        
+
         # Get size of matrix
         n,nc = A.shape
         # Make sure matrix is square
@@ -82,11 +88,14 @@ class PCGSolver(IterativeLinearSolver):
             return self.handleConvergence(0, np.zeros_like(b), 0, 0)
 
         # Form the preconditioner
-        precond = self.precond().form(A)
+        print('prec frozen = ', self.precFrozen())
+        if self.precond == None or not self.precFrozen():
+            print('building prec')
+            self.precond = self.precondType().form(A)
 
         # Initialize the step, residual, and solution vectors
         r = np.copy(b)
-        p = precond.applyRight(r)
+        p = self.precond.applyRight(r)
         u = np.copy(p)
         x = np.zeros_like(b)
 
@@ -111,7 +120,7 @@ class PCGSolver(IterativeLinearSolver):
             # Make step and compute updated residual
             x = x + alpha*p
             r = r - alpha*Ap
-            u = precond.applyRight(r)
+            u = self.precond.applyRight(r)
 
             normR = self.norm(r)
             self.reportIter(k, normR, normB)

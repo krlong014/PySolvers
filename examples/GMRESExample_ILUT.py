@@ -1,5 +1,6 @@
-from PySolvers.Linear import GMRES, RightILUT, CommonSolverArgs
+from PySolvers.Linear import GMRES, RightILUT
 from DHTestProblem import DHTestProblem
+from PySolvers import CommonSolverArgs
 import numpy as np
 import numpy.linalg as npla
 import argparse
@@ -15,9 +16,8 @@ if __name__=='__main__':
 
     (A,b,xEx) = DHTestProblem(args.meshLev)
 
-    control = CommonSolverArgs(maxiter=args.maxiter, tau=args.tau,
-                               precond=RightILUT())
-    solverType = GMRES(args=control)
+    control = CommonSolverArgs(maxiter=args.maxiter, tau=args.tau)
+    solverType = GMRES(control=control, precond=RightILUT())
     solver = solverType.makeSolver()
 
 
