@@ -1,5 +1,6 @@
-from PySolvers.Linear import PCG, RightIC, CommonSolverArgs, AMG
+from PySolvers.Linear import PCG, RightIC, AMG
 from DHTestProblem import DHTestProblem
+from PySolvers import CommonSolverArgs
 import numpy as np
 import numpy.linalg as npla
 import argparse
@@ -16,9 +17,8 @@ if __name__=='__main__':
 
     (A,b,xEx) = DHTestProblem(args.meshLev)
 
-    control = CommonSolverArgs(maxiter=args.maxiter, tau=args.tau,
-                               precond=AMG(numIters=2))
-    solverType = PCG(args=control)
+    control = CommonSolverArgs(maxiter=args.maxiter, tau=args.tau)                              
+    solverType = PCG(control=control, precond=AMG(numIters=2))
     solver = solverType.makeSolver()
 
 

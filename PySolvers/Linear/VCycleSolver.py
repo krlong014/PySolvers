@@ -4,8 +4,8 @@ from .. SolveStatus import SolveStatus
 from . ClassicSmoothers import GaussSeidelSmoother
 from . VCycleManager import VCycleManager
 from . IterativeLinearSolver import (IterativeLinearSolver,
-                                     IterativeLinearSolverType,
-                                     CommonSolverArgs)
+                                     IterativeLinearSolverType)
+from .. IterativeSolver import CommonSolverArgs
 from PyTab import Tab
 import numpy.linalg as la
 import scipy.sparse.linalg as spla
@@ -17,7 +17,7 @@ class AMGVCycle(IterativeLinearSolverType):
     def __init__(self, control=CommonSolverArgs(), numLevels=2,
                  nuPre=2, nuPost=2, smoother=GaussSeidelSmoother,
                  name='AMGVCycle'):
-        super().__init__(args=control)
+        super().__init__(control=control, precond=None)
         self.numLevels = numLevels
         self.nuPre = nuPre
         self.nuPost = nuPost
@@ -28,7 +28,7 @@ class AMGVCycle(IterativeLinearSolverType):
         useName = name
         if useName==None:
             useName = self.name()
-        return AMGVCycleSolver(name=useName, control=self.args(),
+        return AMGVCycleSolver(name=useName, control=self.control(),
                                numLevels = self.numLevels,
                                nuPre = self.nuPre,
                                nuPost = self.nuPost,
@@ -42,7 +42,7 @@ class AMGVCycleSolver(IterativeLinearSolver):
     def __init__(self, control=CommonSolverArgs(),
                  numLevels=2, nuPre=2, nuPost=2,
                  smoother=GaussSeidelSmoother, name='AMGVCycle'):
-        super().__init__(args=control, name=name)
+        super().__init__(control=control, name=name, precond=None)
         self.numLevels = numLevels
         self.nuPre = nuPre
         self.nuPost = nuPost

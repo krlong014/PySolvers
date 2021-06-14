@@ -16,8 +16,8 @@ import scipy.sparse as sp
 from . Givens import findGivensCoefficients, applyGivens, applyGivensInPlace
 from . PreconditionerType import IdentityPreconditionerType
 from . IterativeLinearSolver import (IterativeLinearSolver, mvmult,
-                                      CommonSolverArgs,
                                       IterativeLinearSolverType)
+from .. IterativeSolver import (IterativeSolver, CommonSolverArgs)
 from .. SolveStatus import SolveStatus
 
 
@@ -25,25 +25,31 @@ from .. SolveStatus import SolveStatus
 # GMRES factory class
 
 class GMRES(IterativeLinearSolverType):
-    def __init__(self, args=CommonSolverArgs(),
+    def __init__(self,
+                 control=CommonSolverArgs(),
+                 precond=IdentityPreconditionerType(),
                  name='GMRES'):
-        super().__init__(args=args, name=name)
+        super().__init__(control=control, precond=precond, name=name)
 
     def makeSolver(self, name=None):
         '''Creates a GMRES solver object with the specified parameters.'''
         useName = name
         if useName==None:
             useName = self.name()
-        return GMRESSolver(self.args(), useName)
+        return GMRESSolver(self.control(), precond=self.precond(),
+                           name=useName)
 
 
 # -----------------------------------------------------------------------------
 # GMRES solver class
 
 class GMRESSolver(IterativeLinearSolver):
-    def __init__(self, args=CommonSolverArgs(), name='GMRES'):
+    def __init__(self,
+                 control=CommonSolverArgs(),
+                 precond=IdentityPreconditionerType(),
+                 name='GMRES'):
         '''Constructor'''
-        super().__init__(args=args, name=name)
+        super().__init__(control=control, precond=precond, name=name)
 
 
     def solve(self, A, b):
@@ -62,8 +68,8 @@ class GMRESSolver(IterativeLinearSolver):
             return self.handleConvergence(0, np.zeros_like(b), 0, 0)
 
         # Form the preconditioner
-        precond = self.precond().form(A)
-
+        if self.precond == None or not self.precFrozen():
+            precond = self.precondType().form(A)
 
         # Allocate space for Arnoldi results
         maxiters = self.maxiter()
@@ -171,4 +177,4 @@ class GMRESSolver(IterativeLinearSolver):
 
         # If we're here, maxiter has been reached. This is normally a failure,
         # but may be acceptable if failOnMaxiter is set to false.
-        return self.handleMaxiter(k, x, norm_k, norm_b)
+        return self.handleMaxiter(k, 0, norm_k, norm_b)

@@ -1,5 +1,5 @@
 from PySolvers.Linear.IterativeLinearSolver import (
-    IterativeLinearSolver, mvmult, CommonSolverArgs)
+    IterativeLinearSolver, mvmult)
 from PySolvers.Linear.DefaultDirectSolver import (DefaultDirect,
                                                   DefaultDirectSolver)
 from PySolvers.Linear.PCGSolver import PCG, PCGSolver
